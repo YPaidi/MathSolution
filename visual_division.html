@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Division: Repeated Grouping</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #F0F8FF;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .top-bar {
+            background-color: #F0F8FF;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .top-bar label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .top-bar input {
+            font-size: 16px;
+            width: 70px;
+            text-align: center;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.8; }
+        .btn-start { background-color: #4CAF50; }
+        .btn-next { background-color: #2196F3; }
+        .btn-reset { background-color: #FF5252; }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            margin: 20px;
+            background-color: white;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #narrator {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            min-height: 60px;
+            white-space: pre-line;
+            margin-bottom: 20px;
+        }
+
+        #final_answer {
+            font-size: 40px;
+            font-weight: bold;
+            color: #E91E63;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <label>Dividend (Total):</label>
+        <input type="number" id="entry_dividend" value="3000">
+        
+        <label style="font-size: 20px;">÷</label>
+        
+        <label>Divisor:</label>
+        <input type="number" id="entry_divisor" value="15">
+
+        <button class="btn-start" onclick="startAuto()">▶ Start Auto</button>
+        <button class="btn-next" onclick="stepManual()">⏭ Next Step</button>
+        <button class="btn-reset" onclick="initLesson()">⟲ Reset</button>
+
+        <div class="slider-container">
+            <label>Speed:</label>
+            <input type="range" id="slider_speed" min="1" max="10" value="9">
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="narrator">Press 'Start Auto' or 'Next Step' to learn Division!</div>
+        <canvas id="myCanvas"></canvas>
+        <div id="final_answer"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("myCanvas");
+        const ctx = canvas.getContext("2d");
+        const container = document.getElementById("canvas-container");
+        const narrator = document.getElementById("narrator");
+        const finalAnswer = document.getElementById("final_answer");
+
+        let dividend = 0;
+        let divisor = 0;
+        let currentIndex = 0;
+        let groupsMade = 0;
+        let phase = ""; 
+        let isAnimating = false;
+        let autoMode = false;
+        let items = []; 
+        let pies = []; 
+        let timeoutId = null;
+
+        function getSpeedDelay() {
+            let speed = document.getElementById("slider_speed").value;
+            return Math.max(10, 1000 - speed * 95);
+        }
+
+        function resetState() {
+            clearTimeout(timeoutId);
+            isAnimating = false;
+            autoMode = false;
+            currentIndex = 0;
+            groupsMade = 0;
+            items = [];
+            pies = [];
+            phase = "";
+            narrator.innerText = "Press 'Start Auto' or 'Next Step' to learn Division!";
+            finalAnswer.innerText = "";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function initLesson() {
+            resetState();
+            
+            dividend = parseInt(document.getElementById("entry_dividend").value);
+            divisor = parseInt(document.getElementById("entry_divisor").value);
+
+            if (isNaN(dividend) || isNaN(divisor)) {
+                alert("Please enter valid whole numbers.");
+                return false;
+            }
+            if (divisor <= 0) {
+                alert("The divisor must be greater than 0.");
+                return false;
+            }
+            if (dividend > 5000) {
+                alert("To keep the app smooth, please use 5000 or less.");
+                return false;
+            }
+
+            // Make canvas dynamically fit the width of the container
+            canvas.width = container.clientWidth - 40; 
+
+            for(let i=0; i<dividend; i++) {
+                items.push(false); // false means unused (pink flower)
+            }
+
+            narrator.innerText = `Step 1: We start with ${dividend} flowers.\nLet's see how many groups of ${divisor} we can make!`;
+            phase = "GROUPING";
+            draw();
+            return true;
+        }
+
+        function startAuto() {
+            if (items.length === 0) {
+                if (!initLesson()) return;
+            }
+            autoMode = true;
+            isAnimating = true;
+            timeoutId = setTimeout(executeStep, getSpeedDelay());
+        }
+
+        function stepManual() {
+            autoMode = false;
+            if (items.length === 0) {
+                initLesson();
+            } else {
+                executeStep();
+            }
+        }
+
+        function executeStep() {
+            let itemsRemaining = dividend - currentIndex;
+
+            if (phase === "GROUPING") {
+                if (itemsRemaining >= divisor) {
+                    makeGroup(divisor, true);
+                    groupsMade++;
+                    let word = groupsMade === 1 ? "1 group" : "another group";
+                    narrator.innerText = `We made ${word} of ${divisor}.`;
+                } else {
+                    if (itemsRemaining > 0) {
+                        phase = "REMAINDER";
+                        executeStep();
+                        return;
+                    } else {
+                        phase = "FINISH";
+                        executeStep();
+                        return;
+                    }
+                }
+            } else if (phase === "REMAINDER") {
+                makeGroup(itemsRemaining, false);
+                narrator.innerText = `We have ${itemsRemaining} left over.\nThat's not enough to make a full group of ${divisor}.`;
+                phase = "FINISH";
+            } else if (phase === "FINISH") {
+                let remainder = dividend % divisor;
+                let quotient = Math.floor(dividend / divisor);
+                narrator.innerText = "All done! We've sorted all the items.";
+                finalAnswer.innerText = `${dividend} ÷ ${divisor} = ${quotient} R${remainder}`;
+                autoMode = false;
+                isAnimating = false;
+                
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 50);
+                return;
+            }
+
+            // Auto scroll down
+            container.scrollTop = container.scrollHeight;
+
+            if (autoMode) {
+                timeoutId = setTimeout(executeStep, getSpeedDelay());
+            }
+        }
+
+        function makeGroup(count, isFull) {
+            for(let i=0; i<count; i++) {
+                items[currentIndex + i] = true; // true means picked (white flower)
+            }
+            currentIndex += count;
+            pies.push({count: count, isFull: isFull});
+            draw();
+        }
+
+        function draw() {
+            let spacing = 22;
+            let cols = Math.floor(canvas.width / spacing);
+            if(cols < 10) cols = 10;
+
+            let dotRows = Math.ceil(items.length / cols);
+            let baseY = dotRows * spacing + 40;
+            
+            let piesPerRow = Math.max(1, Math.floor(canvas.width / 130));
+
+            // Calculate exact height needed for the canvas so it scrolls naturally
+            let neededHeight = baseY + Math.ceil(pies.length / piesPerRow) * 120 + 20;
+            if(items.length === 0) neededHeight = 300; 
+
+            canvas.height = neededHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            // Draw Flowers
+            ctx.font = "16px Arial";
+            for(let i=0; i<items.length; i++) {
+                let row = Math.floor(i / cols);
+                let col = i % cols;
+                let x = col * spacing + spacing/2;
+                let y = row * spacing + spacing/2;
+                ctx.fillText(items[i] ? "💮" : "🌸", x, y);
+            }
+
+            // Draw Pies
+            for(let p=0; p<pies.length; p++) {
+                let pie = pies[p];
+                let pCol = p % piesPerRow;
+                let pRow = Math.floor(p / piesPerRow);
+                
+                // Center the pies slightly
+                let xOffset = (canvas.width - (piesPerRow * 130)) / 2;
+                let cx = xOffset + pCol * 130 + 65;
+                let cy = baseY + pRow * 120 + 45;
+                let r = 45;
+
+                let anglePerSlice = (2 * Math.PI) / divisor;
+                let startAngle = -Math.PI / 2;
+
+                ctx.lineWidth = 2;
+                for(let i=0; i<pie.count; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.arc(cx, cy, r, startAngle, startAngle + anglePerSlice);
+                    ctx.closePath();
+                    ctx.fillStyle = pie.isFull ? "#4CAF50" : "#FF5252";
+                    ctx.fill();
+                    ctx.strokeStyle = "white";
+                    ctx.stroke();
+                    startAngle += anglePerSlice;
+                }
+
+                // Draw dashed outline if it's a remainder pie
+                if(!pie.isFull) {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                    ctx.strokeStyle = "#999";
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                ctx.fillStyle = pie.isFull ? "#2E7D32" : "#D32F2F";
+                ctx.font = "bold 14px Arial";
+                ctx.fillText(pie.isFull ? `${pie.count} = 1 group` : `${pie.count} left`, cx, cy + r + 20);
+            }
+        }
+
+        // Initialize empty state on load
+        window.onload = resetState;
+        
+        // Ensure canvas resizes if window resizes
+        window.onresize = () => {
+            if (items.length > 0) {
+                canvas.width = container.clientWidth - 40;
+                draw();
+            }
+        };
+    </script>
+</body>
+</html>
