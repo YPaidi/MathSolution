@@ -103,12 +103,12 @@
 
     <div class="top-bar">
         <label>Dividend (Total):</label>
-        <input type="number" id="entry_dividend" value="3000">
+        <input type="number" id="entry_dividend" value="288">
         
         <label style="font-size: 20px;">÷</label>
         
         <label>Divisor:</label>
-        <input type="number" id="entry_divisor" value="15">
+        <input type="number" id="entry_divisor" value="54">
 
         <button class="btn-start" onclick="startAuto()">▶ Start Auto</button>
         <button class="btn-next" onclick="stepManual()">⏭ Next Step</button>
@@ -182,11 +182,10 @@
                 return false;
             }
 
-            // Make canvas dynamically fit the width of the container
             canvas.width = container.clientWidth - 40; 
 
             for(let i=0; i<dividend; i++) {
-                items.push(false); // false means unused (pink flower)
+                items.push(false); 
             }
 
             narrator.innerText = `Step 1: We start with ${dividend} flowers.\nLet's see how many groups of ${divisor} we can make!`;
@@ -251,7 +250,6 @@
                 return;
             }
 
-            // Auto scroll down
             container.scrollTop = container.scrollHeight;
 
             if (autoMode) {
@@ -261,7 +259,7 @@
 
         function makeGroup(count, isFull) {
             for(let i=0; i<count; i++) {
-                items[currentIndex + i] = true; // true means picked (white flower)
+                items[currentIndex + i] = true; 
             }
             currentIndex += count;
             pies.push({count: count, isFull: isFull});
@@ -278,7 +276,6 @@
             
             let piesPerRow = Math.max(1, Math.floor(canvas.width / 130));
 
-            // Calculate exact height needed for the canvas so it scrolls naturally
             let neededHeight = baseY + Math.ceil(pies.length / piesPerRow) * 120 + 20;
             if(items.length === 0) neededHeight = 300; 
 
@@ -288,7 +285,6 @@
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
 
-            // Draw Flowers
             ctx.font = "16px Arial";
             for(let i=0; i<items.length; i++) {
                 let row = Math.floor(i / cols);
@@ -298,13 +294,11 @@
                 ctx.fillText(items[i] ? "💮" : "🌸", x, y);
             }
 
-            // Draw Pies
             for(let p=0; p<pies.length; p++) {
                 let pie = pies[p];
                 let pCol = p % piesPerRow;
                 let pRow = Math.floor(p / piesPerRow);
                 
-                // Center the pies slightly
                 let xOffset = (canvas.width - (piesPerRow * 130)) / 2;
                 let cx = xOffset + pCol * 130 + 65;
                 let cy = baseY + pRow * 120 + 45;
@@ -326,7 +320,6 @@
                     startAngle += anglePerSlice;
                 }
 
-                // Draw dashed outline if it's a remainder pie
                 if(!pie.isFull) {
                     ctx.beginPath();
                     ctx.arc(cx, cy, r, 0, 2 * Math.PI);
@@ -342,10 +335,8 @@
             }
         }
 
-        // Initialize empty state on load
         window.onload = resetState;
         
-        // Ensure canvas resizes if window resizes
         window.onresize = () => {
             if (items.length > 0) {
                 canvas.width = container.clientWidth - 40;
