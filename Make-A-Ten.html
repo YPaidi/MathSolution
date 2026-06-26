@@ -115,7 +115,7 @@
         <input type="number" id="entry_subtrahend" value="17">
 
         <button class="btn-start" onclick="startAnimation()">Start Animation</button>
-        <button class="btn-reset" onclick="resetUI()">Reset</button>
+        <button class="btn-reset" onclick="forceReset()">Reset</button>
 
         <div class="slider-container">
             <label>Speed:</label>
@@ -169,13 +169,17 @@
             timeouts.push(id);
         }
 
+        // FIXED: Foolproof animation timer loop
         function tween(duration, onUpdate, onComplete) {
-            let start = performance.now();
+            let start = null;
             function step(timestamp) {
+                if (!start) start = timestamp;
                 let p = (timestamp - start) / duration;
                 if (p > 1) p = 1;
+                
                 onUpdate(p);
                 drawAll();
+                
                 if (p < 1 && isAnimating) {
                     activeTween = requestAnimationFrame(step);
                 } else if (isAnimating && onComplete) {
@@ -185,8 +189,8 @@
             activeTween = requestAnimationFrame(step);
         }
 
-        function resetUI() {
-            if (isAnimating) return;
+        function forceReset() {
+            isAnimating = false; // Forces all active loops to stop immediately
             clearAnimations();
             narrator.innerText = "";
             finalAnswer.innerText = "";
@@ -194,11 +198,6 @@
             orangeArc.visible = false;
             blueArc.visible = false;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        function forceReset() {
-            isAnimating = false;
-            resetUI();
         }
 
         function startAnimation() {
@@ -360,7 +359,6 @@
             let ry = Math.min(rx, 130);
 
             ctx.beginPath();
-            // JS ellipse draws from Math.PI (left side). We draw counter-clockwise to map negative arc progression
             ctx.ellipse(cx, baseY, rx, ry, 0, Math.PI, Math.PI - Math.PI * arcObj.progress, true);
             ctx.strokeStyle = arcObj.color;
             ctx.lineWidth = 4;
@@ -434,4 +432,33 @@
                         ctx.fillStyle = isTen ? "#cc0000" : "black";
                         
                         if (totalUnits > 40) {
-                            ctx.font = is
+                            ctx.font = isTen ? "bold 14px Arial" : "12px Arial";
+                        } else {
+                            ctx.font = isTen ? "bold 16px Arial" : "14px Arial";
+                        }
+
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "top";
+                        ctx.fillText(i, x, baseY + 25);
+                    }
+                }
+            }
+
+            drawArcObj(orangeArc);
+            drawArcObj(blueArc);
+
+            // Draw Rabbit
+            if (rabbit.visible) {
+                ctx.font = "36px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "alphabetic";
+                ctx.fillText(rabbit.text, rabbit.x, rabbit.y + 12); 
+            }
+        }
+        
+        // Setup initial static state
+        forceReset();
+
+    </script>
+</body>
+</html>
