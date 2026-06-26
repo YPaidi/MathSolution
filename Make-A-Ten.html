@@ -142,8 +142,8 @@
         let activeTween = null;
         let timeouts = [];
 
-        // Animation Objects
-        let rabbit = { x: 0, y: 0, visible: false, text: "🐰" };
+        // Animation Objects (Added "speech" to the rabbit!)
+        let rabbit = { x: 0, y: 0, visible: false, text: "🐰", speech: "" };
         let orangeArc = { startVal: 0, endVal: 0, progress: 1, label: "", color: "#ff8c00", boxColor: "#e0b0ff", visible: false, showLabel: false };
         let blueArc = { startVal: 0, endVal: 0, progress: 1, label: "", color: "#1e90ff", boxColor: "#add8e6", visible: false, showLabel: false };
 
@@ -169,7 +169,6 @@
             timeouts.push(id);
         }
 
-        // FIXED: Foolproof animation timer loop
         function tween(duration, onUpdate, onComplete) {
             let start = null;
             function step(timestamp) {
@@ -190,11 +189,12 @@
         }
 
         function forceReset() {
-            isAnimating = false; // Forces all active loops to stop immediately
+            isAnimating = false; 
             clearAnimations();
             narrator.innerText = "";
             finalAnswer.innerText = "";
             rabbit.visible = false;
+            rabbit.speech = "";
             orangeArc.visible = false;
             blueArc.visible = false;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -225,8 +225,12 @@
             clearAnimations();
             narrator.innerText = "";
             finalAnswer.innerText = "";
-            rabbit.visible = false;
+            
+            // Setup rabbit for the start
+            rabbit.visible = true;
             rabbit.text = "🐰";
+            rabbit.speech = `So, you want to subtract ${s} from ${m}?`; // The rabbit's dialogue!
+            
             orangeArc.visible = false;
             blueArc.visible = false;
 
@@ -241,14 +245,15 @@
 
             rabbit.x = getX(s);
             rabbit.y = baseY - 15;
-            rabbit.visible = true;
 
             drawAll();
 
             let duration = getDuration();
             let txtStep1 = `Step 1: Start at ${s} and jump forward by ${jump1} to reach the next ten (${nextTen}).`;
 
-            delayCall(500, () => {
+            // Wait 3 seconds for kids to read the speech bubble, then hide it and start Step 1
+            delayCall(3000, () => {
+                rabbit.speech = ""; // Hide the speech bubble
                 narrator.innerText = txtStep1;
                 doHop(s, nextTen, orangeArc, `+${jump1}`, duration, () => {
                     delayCall(1500, () => {
@@ -269,6 +274,7 @@
                 let rem = orangeJump - distToTen;
                 let split1 = nextTen - distToTen;
 
+                // Using your kid-friendly sentences!
                 let txtStep3 = `Step 3: First, add ${distToTen} to get to the next ten (${nextTenForBlue}).`;
                 let txtStep4 = `Step 4: Then, just add the leftover ${rem} to finish up!`;
 
@@ -322,7 +328,6 @@
         }
 
         function doMorph(startSplit, endSplit, targetBlueLabel, targetOrangeLabel, duration, onComplete) {
-            // Keep rabbit sitting at the final destination
             rabbit.x = getX(m);
             rabbit.y = baseY - 15;
 
@@ -338,7 +343,6 @@
 
                 blueArc.startVal = currentSplit;
             }, () => {
-                // Change text labels exactly at the end
                 blueArc.label = targetBlueLabel;
                 if (endSplit > s + 0.05) {
                     orangeArc.label = targetOrangeLabel;
@@ -364,9 +368,7 @@
             ctx.lineWidth = 4;
             ctx.stroke();
 
-            // Only draw arrow and text if arc is fully drawn out
             if (arcObj.progress >= 1 && arcObj.showLabel) {
-                // Arrow
                 ctx.fillStyle = arcObj.color;
                 ctx.beginPath();
                 ctx.moveTo(x1, baseY);
@@ -380,14 +382,12 @@
                     let lx = cx;
                     let ly = baseY - ry - 15;
 
-                    // Box Background
                     ctx.fillStyle = arcObj.boxColor;
                     ctx.fillRect(lx - tw/2 - 6, ly - 10 - 4, tw + 12, 24);
                     ctx.strokeStyle = "black";
                     ctx.lineWidth = 1;
                     ctx.strokeRect(lx - tw/2 - 6, ly - 10 - 4, tw + 12, 24);
 
-                    // Text
                     ctx.fillStyle = "black";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
@@ -399,7 +399,6 @@
         function drawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Number Line Base
             ctx.beginPath();
             ctx.moveTo(30, baseY);
             ctx.lineTo(canvas.width - 30, baseY);
@@ -407,14 +406,11 @@
             ctx.strokeStyle = "black";
             ctx.stroke();
             
-            // Left Arrow
             ctx.beginPath();
             ctx.moveTo(30, baseY); ctx.lineTo(45, baseY - 8); ctx.lineTo(45, baseY + 8); ctx.fillStyle="black"; ctx.fill();
-            // Right Arrow
             ctx.beginPath();
             ctx.moveTo(canvas.width - 30, baseY); ctx.lineTo(canvas.width - 45, baseY - 8); ctx.lineTo(canvas.width - 45, baseY + 8); ctx.fill();
 
-            // Draw Ticks and Numbers
             if (startVal !== undefined && endVal !== undefined) {
                 for (let i = startVal; i <= endVal; i++) {
                     let x = getX(i);
@@ -447,8 +443,40 @@
             drawArcObj(orangeArc);
             drawArcObj(blueArc);
 
-            // Draw Rabbit
+            // Draw Rabbit and its new Speech Bubble!
             if (rabbit.visible) {
+                if (rabbit.speech) {
+                    ctx.font = "bold 16px Arial";
+                    let tw = ctx.measureText(rabbit.speech).width;
+                    let bx = rabbit.x - tw/2 - 10;
+                    let by = rabbit.y - 70; // Position above the rabbit
+                    
+                    // Bubble background
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(bx, by, tw + 20, 30);
+                    ctx.strokeStyle = "black";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(bx, by, tw + 20, 30);
+                    
+                    // Bubble tail pointing down
+                    ctx.beginPath();
+                    ctx.moveTo(rabbit.x - 6, by + 30);
+                    ctx.lineTo(rabbit.x + 6, by + 30);
+                    ctx.lineTo(rabbit.x, by + 42); 
+                    ctx.fillStyle = "white";
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Hide the overlapping line
+                    ctx.fillRect(rabbit.x - 5, by + 28, 10, 4); 
+                    
+                    // Speech Text
+                    ctx.fillStyle = "black";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(rabbit.speech, rabbit.x, by + 15);
+                }
+
                 ctx.font = "36px Arial";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "alphabetic";
@@ -456,7 +484,6 @@
             }
         }
         
-        // Setup initial static state
         forceReset();
 
     </script>
