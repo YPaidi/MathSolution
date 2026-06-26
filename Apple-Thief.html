@@ -21,18 +21,20 @@
             width: 100%;
             text-align: center;
             padding: 15px 0;
-            font-size: 28px;
+            font-size: clamp(22px, 5vw, 28px); /* Scales font for mobile */
             font-weight: bold;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
         #game-container {
-            margin-top: 30px;
+            margin-top: 20px;
             background-color: white;
             border: 4px solid #b2ebf2;
             border-radius: 15px;
-            width: 800px;
-            height: 500px;
+            width: 95%; /* Responsive width */
+            max-width: 800px;
+            height: 60vh; /* Responsive height */
+            min-height: 400px;
             position: relative;
             overflow: hidden;
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
@@ -46,44 +48,47 @@
             background-color: #fff9c4;
             border: 2px solid #fbc02d;
             border-radius: 10px;
-            padding: 15px 30px;
-            font-size: 20px;
+            padding: 15px;
+            font-size: clamp(16px, 4vw, 20px);
             font-weight: bold;
             color: #333;
             text-align: center;
             z-index: 10;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            min-width: 400px;
+            width: 80%; /* Allows it to shrink on small screens */
+            max-width: 400px;
         }
 
         /* Characters */
         .character {
-            font-size: 80px;
+            font-size: clamp(50px, 10vw, 80px); /* Emojis scale down on mobile */
             position: absolute;
             bottom: 20px;
-            transition: transform 1s ease-in-out;
             z-index: 5;
         }
 
         #farmer {
-            left: 50px;
+            left: 5%; /* Keeps farmer anchored proportionally to the left */
         }
 
         #thief {
-            right: -150px; /* Hidden off-screen initially */
+            right: -120px; /* Hidden off-screen initially */
+            transition: right 1s ease-in-out; /* Smoothly slides in */
         }
 
         #thief.sneak-in {
-            transform: translateX(-280px); /* Move towards the table */
+            right: 15%; /* Sneaks proportionally into the screen */
         }
 
         /* Table and Apples */
         #table {
             position: absolute;
             bottom: 20px;
-            left: 200px;
-            width: 400px;
-            height: 100px;
+            left: 50%;
+            transform: translateX(-50%); /* Keeps table perfectly centered */
+            width: 60%;
+            max-width: 400px;
+            min-height: 100px;
             background-color: #8d6e63;
             border-radius: 10px 10px 0 0;
             border: 3px solid #5d4037;
@@ -91,13 +96,13 @@
             flex-wrap: wrap;
             justify-content: center;
             align-content: flex-start;
-            padding-top: 10px;
+            padding: 10px 5px;
             box-sizing: border-box;
         }
 
         .apple {
-            font-size: 40px; /* Made bigger since there are max 10 apples now! */
-            margin: 0 5px;
+            font-size: clamp(25px, 6vw, 40px); /* Apples fit beautifully on any screen */
+            margin: 0 2%;
             transition: opacity 0.3s;
         }
 
@@ -105,23 +110,26 @@
         #controls {
             margin-top: 20px;
             display: flex;
+            flex-wrap: wrap; /* Allows controls to stack on small screens */
+            justify-content: center;
             gap: 15px;
+            width: 95%;
             align-items: center;
         }
 
         input[type="number"] {
             font-size: 20px;
             padding: 10px;
-            width: 80px;
+            width: 60px;
             text-align: center;
             border: 2px solid #ccc;
             border-radius: 8px;
         }
 
         button {
-            font-size: 18px;
+            font-size: clamp(16px, 4vw, 18px);
             font-weight: bold;
-            padding: 12px 25px;
+            padding: 12px 20px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
@@ -151,8 +159,10 @@
     <div id="controls">
         <button id="btn-start" class="btn-start" onclick="startGame()">▶ Play Story</button>
         
-        <span style="font-size: 20px; font-weight: bold;">Stolen Apples:</span>
-        <input type="number" id="entry_answer" placeholder="?" disabled>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px; font-weight: bold;">Stolen Apples:</span>
+            <input type="number" id="entry_answer" placeholder="?" disabled>
+        </div>
         
         <button id="btn-shout" class="btn-shout" onclick="shoutAnswer()" disabled>🗣️ SHOUT!</button>
     </div>
@@ -224,19 +234,19 @@
             await sleep(3000);
 
             dialogueBox.innerText = "I'm just going to rest my eyes for a second...";
-            farmer.innerText = "😴"; // Farmer falls asleep (no more monkey magic!)
+            farmer.innerText = "😴"; 
             await sleep(2000);
 
-            thief.classList.add("sneak-in"); // Thief slides in
+            thief.classList.add("sneak-in"); 
             await sleep(1500);
 
-            drawApples(leftApples); // Apples disappear!
+            drawApples(leftApples); 
             await sleep(1000);
 
-            thief.classList.remove("sneak-in"); // Thief runs away
+            thief.classList.remove("sneak-in"); 
             await sleep(1500);
 
-            farmer.innerText = "😱"; // Farmer wakes up shocked
+            farmer.innerText = "😱"; 
             dialogueBox.innerText = "Oh no!! Some of my apples are gone!\nHow many did the thief steal?";
 
             // Enable input for the kid to answer
@@ -264,27 +274,26 @@
 
             if (kidAnswer === stolenApples) {
                 // CORRECT ANSWER!
-                farmer.innerText = "😠"; // Angry face
+                farmer.innerText = "😠"; 
                 dialogueBox.innerText = `Hey! You stole ${stolenApples} of my apples. Give them back!!`;
                 
                 await sleep(1500);
                 
-                // Thief comes back crying and returns apples
                 thief.innerText = "🥷💦"; 
                 thief.classList.add("sneak-in");
                 await sleep(1500);
                 
-                drawApples(totalApples); // Apples returned
-                farmer.innerText = "😊"; // Happy farmer
+                drawApples(totalApples); 
+                farmer.innerText = "😊"; 
                 dialogueBox.innerText = "Yay! I got all my apples back. Great job counting!";
                 
                 await sleep(2000);
                 thief.classList.remove("sneak-in");
-                thief.innerText = "🥷"; // Reset thief for next game
+                thief.innerText = "🥷"; 
                 
             } else {
                 // WRONG ANSWER
-                farmer.innerText = "🤔"; // Thinking face
+                farmer.innerText = "🤔"; 
                 dialogueBox.innerText = `Hmm... I don't think it was ${kidAnswer}. Let's count what is left on the table.`;
                 
                 await sleep(3000);
