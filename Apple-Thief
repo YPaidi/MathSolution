@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Don't Steal My Apple!</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', Arial, sans-serif;
+            background-color: #e0f7fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            background-color: #ff5252;
+            color: white;
+            width: 100%;
+            text-align: center;
+            padding: 15px 0;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #game-container {
+            margin-top: 30px;
+            background-color: white;
+            border: 4px solid #b2ebf2;
+            border-radius: 15px;
+            width: 800px;
+            height: 500px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        #dialogue-box {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #fff9c4;
+            border: 2px solid #fbc02d;
+            border-radius: 10px;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            z-index: 10;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            min-width: 400px;
+        }
+
+        /* Characters */
+        .character {
+            font-size: 80px;
+            position: absolute;
+            bottom: 20px;
+            transition: transform 1s ease-in-out;
+            z-index: 5;
+        }
+
+        #farmer {
+            left: 50px;
+        }
+
+        #thief {
+            right: -150px; /* Hidden off-screen initially */
+        }
+
+        #thief.sneak-in {
+            transform: translateX(-280px); /* Move towards the table */
+        }
+
+        /* Table and Apples */
+        #table {
+            position: absolute;
+            bottom: 20px;
+            left: 200px;
+            width: 400px;
+            height: 100px;
+            background-color: #8d6e63;
+            border-radius: 10px 10px 0 0;
+            border: 3px solid #5d4037;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            padding-top: 10px;
+            box-sizing: border-box;
+        }
+
+        .apple {
+            font-size: 40px; /* Made bigger since there are max 10 apples now! */
+            margin: 0 5px;
+            transition: opacity 0.3s;
+        }
+
+        /* Controls */
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            font-size: 20px;
+            padding: 10px;
+            width: 80px;
+            text-align: center;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+
+        button {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background-color: #ccc !important;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-start { background-color: #4CAF50; }
+        .btn-shout { background-color: #E91E63; }
+
+    </style>
+</head>
+<body>
+
+    <header>🍎 Don't Steal My Apple! 🥷</header>
+
+    <div id="controls">
+        <button id="btn-start" class="btn-start" onclick="startGame()">▶ Play Story</button>
+        
+        <span style="font-size: 20px; font-weight: bold;">Stolen Apples:</span>
+        <input type="number" id="entry_answer" placeholder="?" disabled>
+        
+        <button id="btn-shout" class="btn-shout" onclick="shoutAnswer()" disabled>🗣️ SHOUT!</button>
+    </div>
+
+    <div id="game-container">
+        <div id="dialogue-box">Press "Play Story" to begin!</div>
+        
+        <div id="farmer" class="character">🧑‍🌾</div>
+        
+        <div id="table">
+            </div>
+        
+        <div id="thief" class="character">🥷</div>
+    </div>
+
+    <script>
+        // HTML Elements
+        const dialogueBox = document.getElementById("dialogue-box");
+        const table = document.getElementById("table");
+        const farmer = document.getElementById("farmer");
+        const thief = document.getElementById("thief");
+        const inputAnswer = document.getElementById("entry_answer");
+        const btnStart = document.getElementById("btn-start");
+        const btnShout = document.getElementById("btn-shout");
+
+        // Game State Variables
+        let totalApples = 0;
+        let stolenApples = 0;
+        let leftApples = 0;
+        let isAnimating = false;
+
+        // Helper function to pause the code
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Renders a specific number of apples on the table
+        function drawApples(count) {
+            table.innerHTML = "";
+            for (let i = 0; i < count; i++) {
+                let apple = document.createElement("div");
+                apple.className = "apple";
+                apple.innerText = "🍎";
+                table.appendChild(apple);
+            }
+        }
+
+        async function startGame() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            // Disable controls during the animation
+            btnStart.disabled = true;
+            btnShout.disabled = true;
+            inputAnswer.disabled = true;
+            inputAnswer.value = "";
+
+            // 1. Setup Random Numbers (Total between 5 and 10)
+            totalApples = Math.floor(Math.random() * 6) + 5;
+            // Steal between 1 and (total - 2) apples so at least 2 are always left to count
+            stolenApples = Math.floor(Math.random() * (totalApples - 2)) + 1; 
+            leftApples = totalApples - stolenApples;
+
+            // Reset characters
+            farmer.innerText = "🧑‍🌾"; 
+            thief.className = "character"; 
+            drawApples(totalApples);
+
+            // 2. Story Sequence
+            dialogueBox.innerText = `I just put ${totalApples} apples on the table!`;
+            await sleep(3000);
+
+            dialogueBox.innerText = "I'm just going to rest my eyes for a second...";
+            farmer.innerText = "😴"; // Farmer falls asleep (no more monkey magic!)
+            await sleep(2000);
+
+            thief.classList.add("sneak-in"); // Thief slides in
+            await sleep(1500);
+
+            drawApples(leftApples); // Apples disappear!
+            await sleep(1000);
+
+            thief.classList.remove("sneak-in"); // Thief runs away
+            await sleep(1500);
+
+            farmer.innerText = "😱"; // Farmer wakes up shocked
+            dialogueBox.innerText = "Oh no!! Some of my apples are gone!\nHow many did the thief steal?";
+
+            // Enable input for the kid to answer
+            inputAnswer.disabled = false;
+            btnShout.disabled = false;
+            inputAnswer.focus();
+            isAnimating = false;
+            btnStart.innerText = "↻ Play Again";
+            btnStart.disabled = false;
+        }
+
+        async function shoutAnswer() {
+            if (isAnimating) return;
+            
+            let kidAnswer = parseInt(inputAnswer.value);
+
+            if (isNaN(kidAnswer)) {
+                alert("Please type a number first!");
+                return;
+            }
+
+            isAnimating = true;
+            btnShout.disabled = true;
+            inputAnswer.disabled = true;
+
+            if (kidAnswer === stolenApples) {
+                // CORRECT ANSWER!
+                farmer.innerText = "😠"; // Angry face
+                dialogueBox.innerText = `Hey! You stole ${stolenApples} of my apples. Give them back!!`;
+                
+                await sleep(1500);
+                
+                // Thief comes back crying and returns apples
+                thief.innerText = "🥷💦"; 
+                thief.classList.add("sneak-in");
+                await sleep(1500);
+                
+                drawApples(totalApples); // Apples returned
+                farmer.innerText = "😊"; // Happy farmer
+                dialogueBox.innerText = "Yay! I got all my apples back. Great job counting!";
+                
+                await sleep(2000);
+                thief.classList.remove("sneak-in");
+                thief.innerText = "🥷"; // Reset thief for next game
+                
+            } else {
+                // WRONG ANSWER
+                farmer.innerText = "🤔"; // Thinking face
+                dialogueBox.innerText = `Hmm... I don't think it was ${kidAnswer}. Let's count what is left on the table.`;
+                
+                await sleep(3000);
+                farmer.innerText = "😱";
+                dialogueBox.innerText = `I started with ${totalApples}, and now there are only ${leftApples}. Try again!`;
+                
+                inputAnswer.disabled = false;
+                btnShout.disabled = false;
+                inputAnswer.value = "";
+                inputAnswer.focus();
+            }
+            
+            isAnimating = false;
+        }
+    </script>
+</body>
+</html>
