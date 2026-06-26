@@ -190,18 +190,39 @@
 
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // NEW: Function to update text AND speak it out loud!
-        function setDialogue(text) {
-            dialogueBox.innerText = text; // Update the visual text box
+        // UPGRADED: This function now waits for the voice to actually finish speaking!
+        function speakDialogue(text) {
+            dialogueBox.innerText = text; 
             
-            // Check if the browser supports Text-to-Speech
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Stop any currently playing voice
-                let msg = new SpeechSynthesisUtterance(text);
-                msg.pitch = 1.3; // Makes the voice sound a bit higher/friendlier
-                msg.rate = 1.0;  // Normal speaking speed
-                window.speechSynthesis.speak(msg);
-            }
+            return new Promise(resolve => {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel(); 
+                    
+                    let msg = new SpeechSynthesisUtterance(text);
+                    msg.pitch = 1.3; 
+                    msg.rate = 1.0;  
+
+                    // Safety backup: Just in case the browser voice glitches, it won't freeze the game
+                    let fallbackTimer = Math.max(2000, text.length * 80);
+                    let timeoutId = setTimeout(() => resolve(), fallbackTimer);
+
+                    // When the voice finishes naturally, move on!
+                    msg.onend = function() {
+                        clearTimeout(timeoutId);
+                        resolve();
+                    };
+                    
+                    msg.onerror = function() {
+                        clearTimeout(timeoutId);
+                        resolve();
+                    };
+
+                    window.speechSynthesis.speak(msg);
+                } else {
+                    // If no voice is available, just wait a few seconds based on text length
+                    setTimeout(resolve, Math.max(2000, text.length * 80));
+                }
+            });
         }
 
         function drawApples(count) {
@@ -231,13 +252,14 @@
             thief.className = "character"; 
             drawApples(totalApples);
 
-            // Replaced innerText updates with setDialogue to trigger voice
-            setDialogue(`I just put ${totalApples} apples on the table!`);
-            await sleep(3500); // Slightly longer wait to let the voice finish
+            // The code will now pause here until the speaking naturally finishes!
+            await speakDialogue(`I just put ${totalApples} apples on the table!`);
+            await sleep(500); // Tiny breath pause between sentences
 
-            setDialogue("I'm just going to rest my eyes for a second...");
+            await speakDialogue("I'm just going to rest my eyes for a second...");
+            
             farmer.innerText = "😴"; 
-            await sleep(2500);
+            await sleep(1500); // Wait while farmer is sleeping
 
             thief.classList.add("sneak-in"); 
             await sleep(1500);
@@ -249,7 +271,7 @@
             await sleep(1500);
 
             farmer.innerText = "😱"; 
-            setDialogue("Oh no!! Some of my apples are gone! How many did the thief steal?");
+            await speakDialogue("Oh no!! Some of my apples are gone! How many did the thief steal?");
 
             inputAnswer.disabled = false;
             btnShout.disabled = false;
@@ -275,9 +297,7 @@
 
             if (kidAnswer === stolenApples) {
                 farmer.innerText = "😠"; 
-                setDialogue(`Hey! You stole ${stolenApples} of my apples. Give them back!!`);
-                
-                await sleep(2500); // Give time for the shout to be read aloud
+                await speakDialogue(`Hey! You stole ${stolenApples} of my apples. Give them back!!`);
                 
                 thief.innerText = "🥷💦"; 
                 thief.classList.add("sneak-in");
@@ -285,19 +305,20 @@
                 
                 drawApples(totalApples); 
                 farmer.innerText = "😊"; 
-                setDialogue("Yay! I got all my apples back. Great job counting!");
+                await speakDialogue("Yay! I got all my apples back. Great job counting!");
                 
-                await sleep(3000);
+                await sleep(1000);
                 thief.classList.remove("sneak-in");
                 thief.innerText = "🥷"; 
                 
             } else {
                 farmer.innerText = "🤔"; 
-                setDialogue(`Hmm... I don't think it was ${kidAnswer}. Let's count what is left on the table.`);
+                await speakDialogue(`Hmm... I don't think it was ${kidAnswer}. Let's count what is left on the table.`);
                 
-                await sleep(4000);
+                await sleep(500); // Tiny pause
+                
                 farmer.innerText = "😱";
-                setDialogue(`I started with ${totalApples}, and now there are only ${leftApples}. Try again!`);
+                await speakDialogue(`I started with ${totalApples}, and now there are only ${leftApples}. Try again!`);
                 
                 inputAnswer.disabled = false;
                 btnShout.disabled = false;
