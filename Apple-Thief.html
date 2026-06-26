@@ -21,7 +21,7 @@
             width: 100%;
             text-align: center;
             padding: 15px 0;
-            font-size: clamp(22px, 5vw, 28px); /* Scales font for mobile */
+            font-size: clamp(22px, 5vw, 28px);
             font-weight: bold;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
@@ -31,9 +31,9 @@
             background-color: white;
             border: 4px solid #b2ebf2;
             border-radius: 15px;
-            width: 95%; /* Responsive width */
+            width: 95%;
             max-width: 800px;
-            height: 60vh; /* Responsive height */
+            height: 60vh;
             min-height: 400px;
             position: relative;
             overflow: hidden;
@@ -55,37 +55,35 @@
             text-align: center;
             z-index: 10;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            width: 80%; /* Allows it to shrink on small screens */
+            width: 80%;
             max-width: 400px;
         }
 
-        /* Characters */
         .character {
-            font-size: clamp(50px, 10vw, 80px); /* Emojis scale down on mobile */
+            font-size: clamp(50px, 10vw, 80px);
             position: absolute;
             bottom: 20px;
             z-index: 5;
         }
 
         #farmer {
-            left: 5%; /* Keeps farmer anchored proportionally to the left */
+            left: 5%;
         }
 
         #thief {
-            right: -120px; /* Hidden off-screen initially */
-            transition: right 1s ease-in-out; /* Smoothly slides in */
+            right: -120px;
+            transition: right 1s ease-in-out;
         }
 
         #thief.sneak-in {
-            right: 15%; /* Sneaks proportionally into the screen */
+            right: 15%;
         }
 
-        /* Table and Apples */
         #table {
             position: absolute;
             bottom: 20px;
             left: 50%;
-            transform: translateX(-50%); /* Keeps table perfectly centered */
+            transform: translateX(-50%);
             width: 60%;
             max-width: 400px;
             min-height: 100px;
@@ -101,16 +99,15 @@
         }
 
         .apple {
-            font-size: clamp(25px, 6vw, 40px); /* Apples fit beautifully on any screen */
+            font-size: clamp(25px, 6vw, 40px);
             margin: 0 2%;
             transition: opacity 0.3s;
         }
 
-        /* Controls */
         #controls {
             margin-top: 20px;
             display: flex;
-            flex-wrap: wrap; /* Allows controls to stack on small screens */
+            flex-wrap: wrap;
             justify-content: center;
             gap: 15px;
             width: 95%;
@@ -172,14 +169,12 @@
         
         <div id="farmer" class="character">🧑‍🌾</div>
         
-        <div id="table">
-            </div>
+        <div id="table"></div>
         
         <div id="thief" class="character">🥷</div>
     </div>
 
     <script>
-        // HTML Elements
         const dialogueBox = document.getElementById("dialogue-box");
         const table = document.getElementById("table");
         const farmer = document.getElementById("farmer");
@@ -188,16 +183,27 @@
         const btnStart = document.getElementById("btn-start");
         const btnShout = document.getElementById("btn-shout");
 
-        // Game State Variables
         let totalApples = 0;
         let stolenApples = 0;
         let leftApples = 0;
         let isAnimating = false;
 
-        // Helper function to pause the code
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // Renders a specific number of apples on the table
+        // NEW: Function to update text AND speak it out loud!
+        function setDialogue(text) {
+            dialogueBox.innerText = text; // Update the visual text box
+            
+            // Check if the browser supports Text-to-Speech
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop any currently playing voice
+                let msg = new SpeechSynthesisUtterance(text);
+                msg.pitch = 1.3; // Makes the voice sound a bit higher/friendlier
+                msg.rate = 1.0;  // Normal speaking speed
+                window.speechSynthesis.speak(msg);
+            }
+        }
+
         function drawApples(count) {
             table.innerHTML = "";
             for (let i = 0; i < count; i++) {
@@ -212,30 +218,26 @@
             if (isAnimating) return;
             isAnimating = true;
 
-            // Disable controls during the animation
             btnStart.disabled = true;
             btnShout.disabled = true;
             inputAnswer.disabled = true;
             inputAnswer.value = "";
 
-            // 1. Setup Random Numbers (Total between 5 and 10)
             totalApples = Math.floor(Math.random() * 6) + 5;
-            // Steal between 1 and (total - 2) apples so at least 2 are always left to count
             stolenApples = Math.floor(Math.random() * (totalApples - 2)) + 1; 
             leftApples = totalApples - stolenApples;
 
-            // Reset characters
             farmer.innerText = "🧑‍🌾"; 
             thief.className = "character"; 
             drawApples(totalApples);
 
-            // 2. Story Sequence
-            dialogueBox.innerText = `I just put ${totalApples} apples on the table!`;
-            await sleep(3000);
+            // Replaced innerText updates with setDialogue to trigger voice
+            setDialogue(`I just put ${totalApples} apples on the table!`);
+            await sleep(3500); // Slightly longer wait to let the voice finish
 
-            dialogueBox.innerText = "I'm just going to rest my eyes for a second...";
+            setDialogue("I'm just going to rest my eyes for a second...");
             farmer.innerText = "😴"; 
-            await sleep(2000);
+            await sleep(2500);
 
             thief.classList.add("sneak-in"); 
             await sleep(1500);
@@ -247,9 +249,8 @@
             await sleep(1500);
 
             farmer.innerText = "😱"; 
-            dialogueBox.innerText = "Oh no!! Some of my apples are gone!\nHow many did the thief steal?";
+            setDialogue("Oh no!! Some of my apples are gone! How many did the thief steal?");
 
-            // Enable input for the kid to answer
             inputAnswer.disabled = false;
             btnShout.disabled = false;
             inputAnswer.focus();
@@ -273,11 +274,10 @@
             inputAnswer.disabled = true;
 
             if (kidAnswer === stolenApples) {
-                // CORRECT ANSWER!
                 farmer.innerText = "😠"; 
-                dialogueBox.innerText = `Hey! You stole ${stolenApples} of my apples. Give them back!!`;
+                setDialogue(`Hey! You stole ${stolenApples} of my apples. Give them back!!`);
                 
-                await sleep(1500);
+                await sleep(2500); // Give time for the shout to be read aloud
                 
                 thief.innerText = "🥷💦"; 
                 thief.classList.add("sneak-in");
@@ -285,20 +285,19 @@
                 
                 drawApples(totalApples); 
                 farmer.innerText = "😊"; 
-                dialogueBox.innerText = "Yay! I got all my apples back. Great job counting!";
+                setDialogue("Yay! I got all my apples back. Great job counting!");
                 
-                await sleep(2000);
+                await sleep(3000);
                 thief.classList.remove("sneak-in");
                 thief.innerText = "🥷"; 
                 
             } else {
-                // WRONG ANSWER
                 farmer.innerText = "🤔"; 
-                dialogueBox.innerText = `Hmm... I don't think it was ${kidAnswer}. Let's count what is left on the table.`;
+                setDialogue(`Hmm... I don't think it was ${kidAnswer}. Let's count what is left on the table.`);
                 
-                await sleep(3000);
+                await sleep(4000);
                 farmer.innerText = "😱";
-                dialogueBox.innerText = `I started with ${totalApples}, and now there are only ${leftApples}. Try again!`;
+                setDialogue(`I started with ${totalApples}, and now there are only ${leftApples}. Try again!`);
                 
                 inputAnswer.disabled = false;
                 btnShout.disabled = false;
