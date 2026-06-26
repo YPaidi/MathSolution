@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Subtraction: Make a Ten Strategy!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .top-bar {
+            background-color: #f0f8ff;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .top-bar label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .top-bar input[type="number"] {
+            font-size: 16px;
+            width: 60px;
+            text-align: center;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.8; }
+        .btn-start { background-color: #32cd32; }
+        .btn-reset { background-color: #ff6347; }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #canvas-container {
+            position: relative;
+            margin-top: 10px;
+            background-color: white;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            width: 860px;
+            height: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        #narrator {
+            margin-top: 30px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            width: 90%;
+            min-height: 30px;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #final_answer {
+            position: absolute;
+            bottom: 30px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #2e8b57;
+            text-align: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <label>Start Number:</label>
+        <input type="number" id="entry_minuend" value="39">
+        
+        <label style="font-size: 22px;">−</label>
+        
+        <label>Subtract:</label>
+        <input type="number" id="entry_subtrahend" value="17">
+
+        <button class="btn-start" onclick="startAnimation()">Start Animation</button>
+        <button class="btn-reset" onclick="resetUI()">Reset</button>
+
+        <div class="slider-container">
+            <label>Speed:</label>
+            <input type="range" id="slider_speed" min="1" max="10" value="5">
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="narrator"></div>
+        <canvas id="myCanvas" width="860" height="480"></canvas>
+        <div id="final_answer"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("myCanvas");
+        const ctx = canvas.getContext("2d");
+        const narrator = document.getElementById("narrator");
+        const finalAnswer = document.getElementById("final_answer");
+
+        let m, s, startVal, endVal, totalUnits, pixelsPerUnit;
+        const baseY = 280;
+
+        let isAnimating = false;
+        let activeTween = null;
+        let timeouts = [];
+
+        // Animation Objects
+        let rabbit = { x: 0, y: 0, visible: false, text: "🐰" };
+        let orangeArc = { startVal: 0, endVal: 0, progress: 1, label: "", color: "#ff8c00", boxColor: "#e0b0ff", visible: false, showLabel: false };
+        let blueArc = { startVal: 0, endVal: 0, progress: 1, label: "", color: "#1e90ff", boxColor: "#add8e6", visible: false, showLabel: false };
+
+        function getX(val) {
+            return 50 + (val - startVal) * pixelsPerUnit;
+        }
+
+        function getDuration() {
+            let speed = parseInt(document.getElementById("slider_speed").value);
+            let framesPerHop = 15 + (11 - speed) * 8;
+            let hopDelay = 10 + (11 - speed) * 8;
+            return framesPerHop * hopDelay;
+        }
+
+        function clearAnimations() {
+            if (activeTween) cancelAnimationFrame(activeTween);
+            timeouts.forEach(clearTimeout);
+            timeouts = [];
+        }
+
+        function delayCall(ms, callback) {
+            let id = setTimeout(callback, ms);
+            timeouts.push(id);
+        }
+
+        function tween(duration, onUpdate, onComplete) {
+            let start = performance.now();
+            function step(timestamp) {
+                let p = (timestamp - start) / duration;
+                if (p > 1) p = 1;
+                onUpdate(p);
+                drawAll();
+                if (p < 1 && isAnimating) {
+                    activeTween = requestAnimationFrame(step);
+                } else if (isAnimating && onComplete) {
+                    onComplete();
+                }
+            }
+            activeTween = requestAnimationFrame(step);
+        }
+
+        function resetUI() {
+            if (isAnimating) return;
+            clearAnimations();
+            narrator.innerText = "";
+            finalAnswer.innerText = "";
+            rabbit.visible = false;
+            orangeArc.visible = false;
+            blueArc.visible = false;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function forceReset() {
+            isAnimating = false;
+            resetUI();
+        }
+
+        function startAnimation() {
+            if (isAnimating) return;
+
+            m = parseInt(document.getElementById("entry_minuend").value);
+            s = parseInt(document.getElementById("entry_subtrahend").value);
+
+            if (isNaN(m) || isNaN(s)) {
+                alert("Please enter valid whole numbers.");
+                return;
+            }
+            if (s >= m) {
+                alert("The Start Number must be larger than the Subtract number.");
+                return;
+            }
+
+            let nextTen = (Math.floor(s / 10) + 1) * 10;
+            if (nextTen >= m) {
+                alert("This problem doesn't cross a ten boundary! Try 39 - 17.");
+                return;
+            }
+
+            isAnimating = true;
+            clearAnimations();
+            narrator.innerText = "";
+            finalAnswer.innerText = "";
+            rabbit.visible = false;
+            rabbit.text = "🐰";
+            orangeArc.visible = false;
+            blueArc.visible = false;
+
+            let jump1 = nextTen - s;
+            let jump2 = m - nextTen;
+            let answer = jump1 + jump2;
+
+            startVal = s - 1;
+            endVal = m + 1;
+            totalUnits = endVal - startVal;
+            pixelsPerUnit = (canvas.width - 100) / Math.max(totalUnits, 1);
+
+            rabbit.x = getX(s);
+            rabbit.y = baseY - 15;
+            rabbit.visible = true;
+
+            drawAll();
+
+            let duration = getDuration();
+            let txtStep1 = `Step 1: Start at ${s} and jump forward by ${jump1} to reach the next ten (${nextTen}).`;
+
+            delayCall(500, () => {
+                narrator.innerText = txtStep1;
+                doHop(s, nextTen, orangeArc, `+${jump1}`, duration, () => {
+                    delayCall(1500, () => {
+                        narrator.innerText = `Step 2: It's a jump of ${jump2} from ${nextTen} to ${m}.`;
+                        doHop(nextTen, m, blueArc, `+${jump2}`, duration, () => {
+                            delayCall(2000, () => handleAdditionPhase(jump2, jump1, answer, duration, nextTen));
+                        });
+                    });
+                });
+            });
+        }
+
+        function handleAdditionPhase(blueJump, orangeJump, answer, duration, nextTen) {
+            let nextTenForBlue = (Math.floor(blueJump / 10) + 1) * 10;
+            let distToTen = nextTenForBlue - blueJump;
+
+            if (distToTen < orangeJump && (blueJump % 10 !== 0)) {
+                let rem = orangeJump - distToTen;
+                let split1 = nextTen - distToTen;
+
+                let txtStep3 = `Step 3: Start at ${blueJump} and add ${distToTen} to make a ten (${nextTenForBlue}).`;
+                let txtStep4 = `Step 4: Continue counting by adding the rest ${rem}.`;
+
+                narrator.innerText = "Now, watch how the blue line eats the orange line...";
+
+                doMorph(nextTen, split1, `+${nextTenForBlue}`, `+${rem}`, duration, () => {
+                    narrator.innerText = txtStep3;
+                    delayCall(3000, () => {
+                        doMorph(split1, s, `+${answer}`, "", duration, () => {
+                            narrator.innerText = txtStep4;
+                            delayCall(2500, () => showFinalAnswer(answer));
+                        });
+                    });
+                });
+            } else {
+                let txtCombine = `Step 3: Combine the jumps directly to get ${answer}.`;
+                narrator.innerText = "Now, watch how the blue line eats the orange line...";
+
+                doMorph(nextTen, s, `+${answer}`, "", duration, () => {
+                    narrator.innerText = txtCombine;
+                    delayCall(2500, () => showFinalAnswer(answer));
+                });
+            }
+        }
+
+        function showFinalAnswer(answer) {
+            finalAnswer.innerText = `Therefore: ${m} − ${s} = ${answer}`;
+            rabbit.text = "🐰🎉";
+            drawAll();
+            isAnimating = false;
+        }
+
+        function doHop(startNode, endNode, arcObj, label, duration, onComplete) {
+            arcObj.visible = true;
+            arcObj.startVal = startNode;
+            arcObj.endVal = endNode;
+            arcObj.label = label;
+            arcObj.showLabel = false;
+
+            let h = Math.min((getX(endNode) - getX(startNode)) * 0.5, 130);
+
+            tween(duration, (p) => {
+                arcObj.progress = p;
+                rabbit.x = getX(startNode + (endNode - startNode) * p);
+                rabbit.y = baseY - 15 - h * (1 - Math.pow(p * 2 - 1, 2));
+            }, () => {
+                arcObj.showLabel = true;
+                drawAll();
+                if (onComplete) onComplete();
+            });
+        }
+
+        function doMorph(startSplit, endSplit, targetBlueLabel, targetOrangeLabel, duration, onComplete) {
+            // Keep rabbit sitting at the final destination
+            rabbit.x = getX(m);
+            rabbit.y = baseY - 15;
+
+            tween(duration, (p) => {
+                let currentSplit = startSplit + (endSplit - startSplit) * p;
+
+                if (currentSplit > s + 0.05) {
+                    orangeArc.endVal = currentSplit;
+                    orangeArc.visible = true;
+                } else {
+                    orangeArc.visible = false;
+                }
+
+                blueArc.startVal = currentSplit;
+            }, () => {
+                // Change text labels exactly at the end
+                blueArc.label = targetBlueLabel;
+                if (endSplit > s + 0.05) {
+                    orangeArc.label = targetOrangeLabel;
+                }
+                drawAll();
+                if (onComplete) onComplete();
+            });
+        }
+
+        function drawArcObj(arcObj) {
+            if (!arcObj.visible) return;
+            let x0 = getX(arcObj.startVal);
+            let x1 = getX(arcObj.endVal);
+            if (x1 - x0 < 1) return;
+
+            let cx = (x0 + x1) / 2;
+            let rx = (x1 - x0) / 2;
+            let ry = Math.min(rx, 130);
+
+            ctx.beginPath();
+            // JS ellipse draws from Math.PI (left side). We draw counter-clockwise to map negative arc progression
+            ctx.ellipse(cx, baseY, rx, ry, 0, Math.PI, Math.PI - Math.PI * arcObj.progress, true);
+            ctx.strokeStyle = arcObj.color;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Only draw arrow and text if arc is fully drawn out
+            if (arcObj.progress >= 1 && arcObj.showLabel) {
+                // Arrow
+                ctx.fillStyle = arcObj.color;
+                ctx.beginPath();
+                ctx.moveTo(x1, baseY);
+                ctx.lineTo(x1 - 12, baseY - 8);
+                ctx.lineTo(x1 - 12, baseY + 8);
+                ctx.fill();
+
+                if (arcObj.label) {
+                    ctx.font = "bold 16px Arial";
+                    let tw = ctx.measureText(arcObj.label).width;
+                    let lx = cx;
+                    let ly = baseY - ry - 15;
+
+                    // Box Background
+                    ctx.fillStyle = arcObj.boxColor;
+                    ctx.fillRect(lx - tw/2 - 6, ly - 10 - 4, tw + 12, 24);
+                    ctx.strokeStyle = "black";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(lx - tw/2 - 6, ly - 10 - 4, tw + 12, 24);
+
+                    // Text
+                    ctx.fillStyle = "black";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(arcObj.label, lx, ly);
+                }
+            }
+        }
+
+        function drawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Number Line Base
+            ctx.beginPath();
+            ctx.moveTo(30, baseY);
+            ctx.lineTo(canvas.width - 30, baseY);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "black";
+            ctx.stroke();
+            
+            // Left Arrow
+            ctx.beginPath();
+            ctx.moveTo(30, baseY); ctx.lineTo(45, baseY - 8); ctx.lineTo(45, baseY + 8); ctx.fillStyle="black"; ctx.fill();
+            // Right Arrow
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - 30, baseY); ctx.lineTo(canvas.width - 45, baseY - 8); ctx.lineTo(canvas.width - 45, baseY + 8); ctx.fill();
+
+            // Draw Ticks and Numbers
+            if (startVal !== undefined && endVal !== undefined) {
+                for (let i = startVal; i <= endVal; i++) {
+                    let x = getX(i);
+                    let isTen = (i % 10 === 0);
+                    let tickLen = isTen ? 15 : 8;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x, baseY - tickLen);
+                    ctx.lineTo(x, baseY + tickLen);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = "black";
+                    ctx.stroke();
+
+                    if (totalUnits <= 40 || isTen || i === s || i === m) {
+                        ctx.fillStyle = isTen ? "#cc0000" : "black";
+                        
+                        if (totalUnits > 40) {
+                            ctx.font = is
